@@ -298,6 +298,7 @@ exports.ledger = {
     ['AccountTxnID',       OPTIONAL],
     ['WalletLocator',      OPTIONAL],
     ['Balance',            REQUIRED],
+    ['BalanceVBC',         REQUIRED],
     ['MessageKey',         OPTIONAL],
     ['Domain',             OPTIONAL],
     ['Account',            REQUIRED],
