@@ -81,7 +81,9 @@ var FIELDS_MAP = exports.fields = {
     31: 'ReserveBase',
     32: 'ReserveIncrement',
     33: 'SetFlag',
-    34: 'ClearFlag'
+    34: 'ClearFlag',
+    181:'DividendLedger',
+    182:'ReferenceHeight'
   },
   3: { // Int64
     1: 'IndexNext',
@@ -91,7 +93,15 @@ var FIELDS_MAP = exports.fields = {
     5: 'BaseFee',
     6: 'ExchangeRate',
     7: 'LowNode',
-    8: 'HighNode'
+    8: 'HighNode',
+    181:'DividendCoinsVBC',
+    182:'DividendCoinsVBCRank',
+    183:'DividendCoinsVBCSprd',
+    184:'DividendVRank',
+    185:'DividendVSprd',
+    186:'DividendCoins',
+    187:'DividendTSprd'
+
   },
   4: { // Hash128
     1: 'EmailHash'
@@ -110,7 +120,8 @@ var FIELDS_MAP = exports.fields = {
     17: 'InvoiceID',
     18: 'Nickname',
     19: 'Amendment',
-    20: 'TicketID'
+    20: 'TicketID',
+    181:'DividendResultHash'
   },
   6: { // Amount
     1: 'Amount',
@@ -124,7 +135,8 @@ var FIELDS_MAP = exports.fields = {
     9: 'SendMax',
     16: 'MinimumOffer',
     17: 'RippleEscrow',
-    18: 'DeliveredAmount'
+    18: 'DeliveredAmount',
+    181:'BalanceVBC'
   },
   7: { // VL
     1: 'PublicKey',
@@ -148,7 +160,10 @@ var FIELDS_MAP = exports.fields = {
     3: 'Destination',
     4: 'Issuer',
     7: 'Target',
-    8: 'RegularKey'
+    8: 'RegularKey',
+    181: 'Referee',
+    182: 'Reference'
+
   },
   14: { // Object
     1: void(0),  //end of Object
@@ -160,7 +175,8 @@ var FIELDS_MAP = exports.fields = {
     7: 'FinalFields',
     8: 'NewFields',
     9: 'TemplateEntry',
-    10: 'Memo'
+    10: 'Memo',
+    181:'ReferenceHolder'
   },
   15: { // Array
     1: void(0),  //end of Array
@@ -171,14 +187,17 @@ var FIELDS_MAP = exports.fields = {
     6: 'Necessary',
     7: 'Sufficient',
     8: 'AffectedNodes',
-    9: 'Memos'
+    9: 'Memos',
+    181:'References'
   },
 
   // Uncommon types
   16: { // Int8
     1: 'CloseResolution',
     2: 'TemplateEntryType',
-    3: 'TransactionResult'
+    3: 'TransactionResult',
+    181:'DividendState',
+    182:'DividendType'
   },
   17: { // Hash160
     1: 'TakerPaysCurrency',
@@ -255,6 +274,23 @@ exports.tx = {
     [ 'InvoiceID'          , OPTIONAL ],
     [ 'DestinationTag'     , OPTIONAL ]
   ]),
+  Dividend: [181].concat(base, [
+    [ 'DividendType'            , REQUIRED ],
+    [ 'DividendLedger'          , REQUIRED ],
+    [ 'Destination'             , OPTIONAL ],
+    [ 'DividendCoins'           , REQUIRED ],
+    [ 'DividendCoinsVBC'        , REQUIRED ],
+    [ 'sfDividendCoinsVBCRank'  , OPTIONAL ],
+    [ 'DividendCoinsVBCSprd'    , OPTIONAL ],
+    [ 'DividendVRank'           , OPTIONAL ],
+    [ 'DividendVSprd'           , OPTIONAL ],
+    [ 'DividendTSprd'           , OPTIONAL ],
+    [ 'DividendResultHash'      , OPTIONAL ],
+  ]),
+  AddReferee: [182].concat(base,[
+    [ 'Destination'         , REQUIRED ],
+    [ 'Amount'              , OPTIONAL ],
+  ]),
   Contract: [9].concat(base, [
     [ 'Expiration'         , REQUIRED ],
     [ 'BondAmount'         , REQUIRED ],
@@ -302,6 +338,9 @@ exports.ledger = {
     ['MessageKey',         OPTIONAL],
     ['Domain',             OPTIONAL],
     ['Account',            REQUIRED],
+    ['Referee',            OPTIONAL],
+    ['References',         OPTIONAL],
+    ['ReferenceHeight',    OPTIONAL],
     ['RegularKey',         OPTIONAL]]),
   Contract: [99].concat(sleBase,[
     ['PreviousTxnLgrSeq',  REQUIRED],
@@ -378,7 +417,16 @@ exports.ledger = {
     ['LedgerIndex',         OPTIONAL],
     ['Balance',             REQUIRED],
     ['LowLimit',            REQUIRED],
-    ['HighLimit',           REQUIRED]])
+    ['HighLimit',           REQUIRED]]),
+  Dividend: [68].concat(sleBase,[
+    ['DividendState',       REQUIRED],
+    ['DividendLedger',      REQUIRED],
+    ['DividendCoins',       REQUIRED],
+    ['DividendCoinsVBC',    REQUIRED],
+    ['DividendVRank',       OPTIONAL],
+    ['DividendVSprd',       OPTIONAL],
+    ['DividendResultHash',  OPTIONAL]
+  ])
 };
 
 exports.metadata = [
