@@ -786,6 +786,7 @@ OrderBook.prototype.requestOffers = function(callback) {
   }
 
   function handleOffers(res) {
+    console.log("res success", res)
     if (!Array.isArray(res.offers)) {
       // XXX What now?
       return callback(new Error('Invalid response'));
@@ -803,6 +804,7 @@ OrderBook.prototype.requestOffers = function(callback) {
   };
 
   function handleError(err) {
+    console.log("res failed", err)
     // XXX What now?
     if (self._remote.trace) {
       log.info('failed to request offers', self._key, err);

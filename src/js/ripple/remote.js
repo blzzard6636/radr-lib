@@ -1633,7 +1633,7 @@ Remote.prototype.requestBookOffers = function(gets, pays, taker, callback) {
 
     request.message.limit = limit;
   }
-
+  console.log("request.message--", request.message);
   request.callback(callback);
   return request;
 };
