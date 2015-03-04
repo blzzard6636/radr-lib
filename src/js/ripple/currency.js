@@ -205,16 +205,14 @@ Currency.prototype._update = function() {
   if (isZeroExceptInStandardPositions) {
     this._iso_code = String.fromCharCode(bytes[12])
                    + String.fromCharCode(bytes[13])
-                   + String.fromCharCode(bytes[14])
-                   + String.fromCharCode(bytes[19]);
-
-    if (this._iso_code === '\0\0\0\0') {
-      this._native = true;
-      this._iso_code = 'XRP';
-    }
-    if (this._iso_code === '\0\0\0' + String.fromCharCode(255)){
+                   + String.fromCharCode(bytes[14]);
+    if(bytes[19] === 255){
       this._native = true;
       this._iso_code = 'VBC';
+    }
+    if (this._iso_code === '\0\0\0') {
+      this._native = true;
+      this._iso_code = 'XRP';
     }
     this._type = 0;
   } else if (bytes[0] === 0x01) { // Demurrage currency
