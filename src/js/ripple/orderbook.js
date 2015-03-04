@@ -440,7 +440,7 @@ OrderBook.prototype.setFundedAmount = function(offer, fundedAmount) {
   }
 
   var isOfferGetsExceeded = Amount.from_json(
-    this._currencyGets.is_native()
+    this._currencyGets.is_native() && this._currencyGets.to_json() != 'VBC'
     ? fundedAmount
     : fundedAmount + OrderBook.IOU_SUFFIX
   )
