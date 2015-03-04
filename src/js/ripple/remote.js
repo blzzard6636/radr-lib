@@ -2005,7 +2005,7 @@ Remote.prototype.createOrderBook = function(currency_gets, issuer_gets, currency
   var gets = Remote.prepareTrade(currency_gets, issuer_gets);
   var pays = Remote.prepareTrade(currency_pays, issuer_pays);
   var key = gets + ':' + pays;
-
+  console.log("book key:", key);
   if (this._books.hasOwnProperty(key)) {
     return this._books[key];
   }
@@ -2014,7 +2014,7 @@ Remote.prototype.createOrderBook = function(currency_gets, issuer_gets, currency
     currency_gets, issuer_gets,
     currency_pays, issuer_pays,
     key);
-
+  console.log("book", book);
   if (book.is_valid()) {
     this._books[key] = book;
   }
