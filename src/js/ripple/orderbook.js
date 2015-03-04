@@ -810,7 +810,7 @@ OrderBook.prototype.requestOffers = function(callback) {
 
     callback(err);
   };
-
+  console.log("request data:", this.toJSON());
   var request = this._remote.requestBookOffers(this.toJSON());
   request.once('success', handleOffers);
   request.once('error', handleError);
