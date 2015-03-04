@@ -157,6 +157,7 @@ Amount.prototype.divide = function(divisor) {
     throw new Error('Invalid dividend');
   }
   if (!divisorAmount.is_valid()) {
+    console.log("divisor", divisor)
     throw new Error('Invalid divisor');
   }
   if (divisorAmount.is_zero()) {
