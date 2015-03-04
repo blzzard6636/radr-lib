@@ -205,7 +205,9 @@ Currency.prototype._update = function() {
       this._native = true;
       this._iso_code = 'XRP';
     }
-
+    if (this._iso_code === 'VBC'){
+      this._native = true;
+    }
     this._type = 0;
   } else if (bytes[0] === 0x01) { // Demurrage currency
     this._iso_code = String.fromCharCode(bytes[1])
@@ -358,4 +360,6 @@ Currency.prototype.get_iso = function() {
 
 exports.Currency = Currency;
 
+
 // vim:sw=2:sts=2:ts=8:et
+
