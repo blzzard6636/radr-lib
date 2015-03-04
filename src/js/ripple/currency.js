@@ -91,6 +91,11 @@ Currency.prototype.parse_json = function(j, shouldInterpretXrpAsIou) {
           break;
         }
 
+        if (/^(VBC)$/.test(currencyCode)) {
+          this.parse_hex(Currency.HEX_CURRENCY_VBC);
+          break;
+        }
+
         // the full currency is matched as it is part of the valid currency format, but not stored
         // var full_currency = matches[2] || '';
         var interest = matches[3] || '';
@@ -194,21 +199,22 @@ Currency.prototype._update = function() {
   this._iso_code = '';
 
   for (var i=0; i<20; i++) {
-    isZeroExceptInStandardPositions = isZeroExceptInStandardPositions && (i===12 || i===13 || i===14 || bytes[i]===0);
+    isZeroExceptInStandardPositions = isZeroExceptInStandardPositions && (i===12 || i===13 || i===14 || i===19 || bytes[i]===0);
   }
 
   if (isZeroExceptInStandardPositions) {
     this._iso_code = String.fromCharCode(bytes[12])
                    + String.fromCharCode(bytes[13])
-                   + String.fromCharCode(bytes[14]);
+                   + String.fromCharCode(bytes[14])
+                   + String.fromCharCode(bytes[19]);
 
-    if (this._iso_code === '\0\0\0') {
+    if (this._iso_code === '\0\0\0\0') {
       this._native = true;
       this._iso_code = 'XRP';
     }
-    if (this._iso_code === 'VBC'){
+    if (this._iso_code === '\0\0\0' + String.fromCharCode(255)){
       this._native = true;
-      this._value = this.HEX_CURRENCY_VBC;
+      this._iso_code = 'VBC';
     }
     this._type = 0;
   } else if (bytes[0] === 0x01) { // Demurrage currency
