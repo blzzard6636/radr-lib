@@ -452,7 +452,7 @@ OrderBook.prototype.setFundedAmount = function(offer, fundedAmount) {
     offer.taker_gets_funded = fundedAmount;
   }
 
-  var takerPaysValue = this._currencyPays.is_native()
+  var takerPaysValue = this._currencyPays.is_native() && this._currencyPays.to_json() != 'VBC'
   ? offer.TakerPays
   : offer.TakerPays.value;
   var takerPays = Amount.from_json(takerPaysValue +  OrderBook.IOU_SUFFIX);
