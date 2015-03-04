@@ -208,7 +208,7 @@ Currency.prototype._update = function() {
     }
     if (this._iso_code === 'VBC'){
       this._native = true;
-      this._value = Currency.HEX_CURRENCY_VBC;
+      this._value = this.HEX_CURRENCY_VBC;
     }
     this._type = 0;
   } else if (bytes[0] === 0x01) { // Demurrage currency
