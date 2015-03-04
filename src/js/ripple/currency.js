@@ -25,6 +25,7 @@ Currency.prototype = extend({}, UInt160.prototype);
 Currency.prototype.constructor = Currency;
 
 Currency.HEX_CURRENCY_BAD = '0000000000000000000000005852500000000000';
+Currency.HEX_CURRENCY_VBC = '00000000000000000000000000000000000000FF';
 
 /**
  * Tries to correctly interpret a Currency as entered by a user.
@@ -207,6 +208,7 @@ Currency.prototype._update = function() {
     }
     if (this._iso_code === 'VBC'){
       this._native = true;
+      this._value = Currency.HEX_CURRENCY_VBC;
     }
     this._type = 0;
   } else if (bytes[0] === 0x01) { // Demurrage currency
