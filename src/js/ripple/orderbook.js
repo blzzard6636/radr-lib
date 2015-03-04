@@ -804,7 +804,7 @@ OrderBook.prototype.requestOffers = function(callback) {
   };
 
   function handleError(err) {
-    console.log("res failed", err)
+    console.log("res success", res)
     // XXX What now?
     if (self._remote.trace) {
       log.info('failed to request offers', self._key, err);

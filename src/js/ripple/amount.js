@@ -157,7 +157,6 @@ Amount.prototype.divide = function(divisor) {
     throw new Error('Invalid dividend');
   }
   if (!divisorAmount.is_valid()) {
-    console.log("divisor", divisor)
     throw new Error('Invalid divisor');
   }
   if (divisorAmount.is_zero()) {
@@ -510,7 +509,7 @@ Amount.prototype.parse_human = function(j, opts) {
 
   currency = currency.toUpperCase();
   this.set_currency(currency);
-  this._is_native = (currency === 'XRP');
+  this._is_native = (currency === 'XRP' || currency === 'VBC');
   this._set_value(new BigNumber(value));
 
   // Apply interest/demurrage
@@ -673,6 +672,7 @@ Amount.prototype.parse_json = function(j) {
         }
 
         this.parse_value(j.value);
+        this._is_native = this._currency.is_native();
       }
       break;
 
