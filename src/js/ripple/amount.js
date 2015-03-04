@@ -673,6 +673,14 @@ Amount.prototype.parse_json = function(j) {
 
         this.parse_value(j.value);
         this._is_native = this._currency.is_native();
+        var value = new BigNumber(j.value);
+        if(this.is_native()){
+          if (j.value.indexOf('.') >= 0) {
+            this._set_value(value);
+          } else {
+            this._set_value(value.dividedBy(Amount.bi_xns_unit));
+          }
+        }
       }
       break;
 
