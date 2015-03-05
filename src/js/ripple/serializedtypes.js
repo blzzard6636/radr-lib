@@ -313,7 +313,12 @@ var STAmount = exports.Amount = new SerializedType({
       // Clear most significant two bits - these bits should already be 0 if
       // Amount enforces the range correctly, but we'll clear them anyway just
       // so this code can make certain guarantees about the encoded value.
-      valueBytes[0] &= 0x3f;
+
+      valueBytes[0] &= 0x1f;
+
+      if(amount.currency.to_json() === 'VBC'){
+        valueBytes[0] |= 0x20;
+      }
 
       if (!amount.is_negative()) {
         valueBytes[0] |= 0x40;
