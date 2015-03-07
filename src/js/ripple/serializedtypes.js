@@ -316,7 +316,7 @@ var STAmount = exports.Amount = new SerializedType({
 
       valueBytes[0] &= 0x1f;
 
-      if(amount.currency.to_json() === 'VBC'){
+      if(amount.currency === 'VBC' || amount.currency.to_json() === 'VBC'){
         valueBytes[0] |= 0x20;
       }
 
@@ -541,7 +541,7 @@ var STPathSet = exports.PathSet = new SerializedType({
       if (tag_byte & this.typeCurrency) {
         //console.log('entry.currency');
         entry.currency = STCurrency.parse(so);
-        if (entry.currency.to_json() === 'XRP' && !entry.currency.is_native()) {
+        if (entry.currency.to_json() === 'VRP' && !entry.currency.is_native()) {
           entry.non_native = true;
         }
         type = type | this.typeCurrency;

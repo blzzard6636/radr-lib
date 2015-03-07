@@ -8,11 +8,11 @@ var Float = require('./ieee754').Float;
 //
 
 var Currency = extend(function() {
-  // Internal form: 0 = XRP. 3 letter-code.
+  // Internal form: 0 = VRP. 3 letter-code.
   // XXX Internal should be 0 or hex with three letter annotation when valid.
 
   // Json form:
-  //  '', 'XRP', '0': 0
+  //  '', 'VRP', '0': 0
   //  3-letter code: ...
   // XXX Should support hex, C++ doesn't currently allow it.
 
@@ -53,8 +53,8 @@ Currency.HEX_CURRENCY_VBC = '00000000000000000000000000000000000000FF';
  */
 Currency.prototype.human_RE = /^\s*([a-zA-Z0-9]{3})(\s*-\s*[- \w]+)?(\s*\(-?\d+\.?\d*%pa\))?\s*$/;
 
-Currency.from_json = function(j, shouldInterpretXrpAsIou) {
-    return (new Currency()).parse_json(j, shouldInterpretXrpAsIou);
+Currency.from_json = function(j, shouldInterpretVRPAsIou) {
+    return (new Currency()).parse_json(j, shouldInterpretVRPAsIou);
 };
 
 Currency.from_human = function(j, opts) {
@@ -62,15 +62,15 @@ Currency.from_human = function(j, opts) {
 }
 
 // this._value = NaN on error.
-Currency.prototype.parse_json = function(j, shouldInterpretXrpAsIou) {
+Currency.prototype.parse_json = function(j, shouldInterpretVRPAsIou) {
   this._value = NaN;
 
   switch (typeof j) {
     case 'string':
 
-      // if an empty string is given, fall back to XRP
+      // if an empty string is given, fall back to VRP
       if (!j || j === '0') {
-        this.parse_hex(shouldInterpretXrpAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
+        this.parse_hex(shouldInterpretVRPAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
         break;
       }
 
@@ -81,13 +81,13 @@ Currency.prototype.parse_json = function(j, shouldInterpretXrpAsIou) {
 
         var currencyCode = matches[1];
 
-        // for the currency 'XRP' case
+        // for the currency 'VRP' case
         // we drop everything else that could have been provided
-        // e.g. 'XRP - Ripple'
-        if (!currencyCode || /^(0|XRP)$/.test(currencyCode)) {
-          this.parse_hex(shouldInterpretXrpAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
+        // e.g. 'VRP - Ripple'
+        if (!currencyCode || /^(0|VRP)$/.test(currencyCode)) {
+          this.parse_hex(shouldInterpretVRPAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
 
-          // early break, we can't have interest on XRP
+          // early break, we can't have interest on VRP
           break;
         }
 
@@ -189,7 +189,7 @@ Currency.prototype._update = function() {
   var isZeroExceptInStandardPositions = true;
 
   if (!bytes) {
-    return 'XRP';
+    return 'VRP';
   }
 
   this._native = false;
@@ -212,7 +212,7 @@ Currency.prototype._update = function() {
     }
     if (this._iso_code === '\0\0\0') {
       this._native = true;
-      this._iso_code = 'XRP';
+      this._iso_code = 'VRP';
     }
     this._type = 0;
   } else if (bytes[0] === 0x01) { // Demurrage currency
@@ -245,7 +245,7 @@ Currency.prototype.parse_bytes = function(byte_array) {
       var currencyCode = String.fromCharCode(byte_array[12])
       + String.fromCharCode(byte_array[13])
       + String.fromCharCode(byte_array[14]);
-      if (/^[A-Z0-9]{3}$/.test(currencyCode) && currencyCode !== 'XRP' ) {
+      if (/^[A-Z0-9]{3}$/.test(currencyCode) && currencyCode !== 'VRP' ) {
         this._value = currencyCode;
       } else if (currencyCode === '\0\0\0') {
         this._value = 0;
@@ -322,7 +322,7 @@ Currency.prototype.get_interest_percentage_at = function(referenceDate, decimals
 Currency.prototype.to_json = function(opts) {
   if (!this.is_valid()) {
     // XXX This is backwards compatible behavior, but probably not very good.
-    return 'XRP';
+    return 'VRP';
   }
 
   var opts = opts || {};
