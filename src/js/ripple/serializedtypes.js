@@ -316,7 +316,7 @@ var STAmount = exports.Amount = new SerializedType({
 
       valueBytes[0] &= 0x1f;
 
-      if(amount.currency === 'VBC' || amount.currency.to_json() === 'VBC'){
+      if(amount.currency().to_json() === 'VBC'){
         valueBytes[0] |= 0x20;
       }
 
