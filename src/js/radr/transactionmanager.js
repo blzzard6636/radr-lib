@@ -1,13 +1,11 @@
-'use strict';
-
-var util = require('util');
-var assert = require('assert');
-var async = require('async');
+var util         = require('util');
+var assert       = require('assert');
+var async        = require('async');
 var EventEmitter = require('events').EventEmitter;
-var Transaction = require('./transaction').Transaction;
-var RippleError = require('./rippleerror').RippleError;
+var Transaction  = require('./transaction').Transaction;
+var RadrError  = require('./radrerror').RadrError;
 var PendingQueue = require('./transactionqueue').TransactionQueue;
-var log = require('./log').internal.sub('transactionmanager');
+var log          = require('./log').internal.sub('transactionmanager');
 
 /**
  * @constructor TransactionManager
@@ -22,7 +20,7 @@ function TransactionManager(account) {
   this._account = account;
   this._accountID = account._account_id;
   this._remote = account._remote;
-  this._nextSequence = undefined;
+  this._nextSequence = void(0);
   this._maxFee = this._remote.max_fee;
   this._maxAttempts = this._remote.max_attempts;
   this._submissionTimeout = this._remote.submission_timeout;
@@ -39,7 +37,7 @@ function TransactionManager(account) {
 
   function updatePendingStatus(ledger) {
     self._updatePendingStatus(ledger);
-  }
+  };
 
   this._remote.on('ledger_closed', updatePendingStatus);
 
@@ -49,7 +47,7 @@ function TransactionManager(account) {
       // hooking back into ledger_closed
       self._remote.on('ledger_closed', updatePendingStatus);
     });
-  }
+  };
 
   this._remote.on('disconnect', function() {
     self._remote.removeListener('ledger_closed', updatePendingStatus);
@@ -58,7 +56,7 @@ function TransactionManager(account) {
 
   // Query server for next account transaction sequence
   this._loadSequence();
-}
+};
 
 util.inherits(TransactionManager, EventEmitter);
 
@@ -98,7 +96,7 @@ TransactionManager.normalizeTransaction = function(tx) {
   var transaction = { };
   var keys = Object.keys(tx);
 
-  for (var i = 0; i < keys.length; i++) {
+  for (var i=0; i<keys.length; i++) {
     var k = keys[i];
     switch (k) {
       case 'transaction':
@@ -164,8 +162,7 @@ TransactionManager.prototype._transactionReceived = function(tx) {
 
   if (!(submission instanceof Transaction)) {
     // The received transaction does not correlate to one submitted
-    this._pending.addReceivedId(hash, transaction);
-    return;
+    return this._pending.addReceivedId(hash, transaction);
   }
 
   // ND: A `success` handler will `finalize` this later
@@ -200,7 +197,7 @@ TransactionManager.prototype._adjustFees = function() {
     transaction.once('presubmit', function() {
       transaction.emit('error', 'tejMaxFeeExceeded');
     });
-  }
+  };
 
   this._pending.forEach(function(transaction) {
     if (transaction._setFixedFee) {
@@ -212,8 +209,7 @@ TransactionManager.prototype._adjustFees = function() {
 
     if (Number(newFee) > self._maxFee) {
       // Max transaction fee exceeded, abort submission
-      maxFeeExceeded(transaction);
-      return;
+      return maxFeeExceeded(transaction);
     }
 
     transaction.tx_json.Fee = newFee;
@@ -248,10 +244,6 @@ TransactionManager.prototype._updatePendingStatus = function(ledger) {
   assert.strictEqual(typeof ledger.ledger_index, 'number');
 
   this._pending.forEach(function(transaction) {
-    if (transaction.finalized) {
-      return;
-    }
-
     switch (ledger.ledger_index - transaction.submitIndex) {
       case 4:
         transaction.emit('missing', ledger);
@@ -261,62 +253,58 @@ TransactionManager.prototype._updatePendingStatus = function(ledger) {
         break;
     }
 
+    if (transaction.finalized) {
+      return;
+    }
+
     if (ledger.ledger_index > transaction.tx_json.LastLedgerSequence) {
       // Transaction must fail
-      transaction.emit('error', new RippleError(
+      transaction.emit('error', new RadrError(
         'tejMaxLedger', 'Transaction LastLedgerSequence exceeded'));
     }
   });
 };
 
-// Fill an account transaction sequence
+//Fill an account transaction sequence
 TransactionManager.prototype._fillSequence = function(tx, callback) {
   var self = this;
 
-  function submitFill(sequence, fCallback) {
-    var fillTransaction = self._remote.createTransaction('AccountSet', {
-      account: self._accountID
-    });
-    fillTransaction.tx_json.Sequence = sequence;
+  function submitFill(sequence, callback) {
+    var fill = self._remote.transaction();
+    fill.account_set(self._accountID);
+    fill.tx_json.Sequence = sequence;
+    fill.once('submitted', callback);
 
     // Secrets may be set on a per-transaction basis
     if (tx._secret) {
-      fillTransaction.secret(tx._secret);
+      fill.secret(tx._secret);
     }
 
-    fillTransaction.once('submitted', fCallback);
-    fillTransaction.submit();
-  }
+    fill.submit();
+  };
 
   function sequenceLoaded(err, sequence) {
     if (typeof sequence !== 'number') {
-      log.info('fill sequence: failed to fetch account transaction sequence');
-      return callback();
+      return callback(new Error('Failed to fetch account transaction sequence'));
     }
 
-    var sequenceDiff = tx.tx_json.Sequence - sequence;
+    var sequenceDif = tx.tx_json.Sequence - sequence;
     var submitted = 0;
 
-    async.whilst(
-      function() {
-        return submitted < sequenceDiff;
-      },
-      function(asyncCallback) {
-        submitFill(sequence, function(res) {
-          ++submitted;
-          if (res.engine_result === 'tesSUCCESS') {
-            self.emit('sequence_filled', err);
-          }
-          asyncCallback();
-        });
-      },
-      function() {
-        if (callback) {
-          callback();
-        }
+    ;(function nextFill(sequence) {
+      if (sequence >= tx.tx_json.Sequence) {
+        return;
       }
-    );
-  }
+
+      submitFill(sequence, function() {
+        if (++submitted === sequenceDif) {
+          callback();
+        } else {
+          nextFill(sequence + 1);
+        }
+      });
+    })(sequence);
+  };
 
   this._loadSequence(sequenceLoaded);
 };
@@ -330,7 +318,7 @@ TransactionManager.prototype._fillSequence = function(tx, callback) {
 
 TransactionManager.prototype._loadSequence = function(callback) {
   var self = this;
-  callback = (typeof callback === 'function') ? callback : function() {};
+  var callback = (typeof callback === 'function') ? callback : function(){};
 
   function sequenceLoaded(err, sequence) {
     if (err || typeof sequence !== 'number') {
@@ -343,7 +331,7 @@ TransactionManager.prototype._loadSequence = function(callback) {
     self._nextSequence = sequence;
     self.emit('sequence_loaded', sequence);
     callback(err, sequence);
-  }
+  };
 
   this._account.getNextSequence(sequenceLoaded);
 };
@@ -358,11 +346,10 @@ TransactionManager.prototype._loadSequence = function(callback) {
 
 TransactionManager.prototype._handleReconnect = function(callback) {
   var self = this;
-  callback = (typeof callback === 'function') ? callback : function() {};
+  var callback = (typeof callback === 'function') ? callback : function(){};
 
   if (!this._pending.length()) {
-    callback();
-    return;
+    return callback();
   }
 
   function handleTransactions(err, transactions) {
@@ -385,7 +372,7 @@ TransactionManager.prototype._handleReconnect = function(callback) {
       // Resubmit pending transactions after sequence is loaded
       self._resubmit();
     });
-  }
+  };
 
   var options = {
     account: this._accountID,
@@ -423,7 +410,7 @@ TransactionManager.prototype._waitLedgers = function(ledgers, callback) {
       self._remote.removeListener('ledger_closed', ledgerClosed);
       callback();
     }
-  }
+  };
 
   this._remote.on('ledger_closed', ledgerClosed);
 };
@@ -439,16 +426,8 @@ TransactionManager.prototype._waitLedgers = function(ledgers, callback) {
 
 TransactionManager.prototype._resubmit = function(ledgers, pending) {
   var self = this;
-
-  if (ledgers && typeof ledgers !== 'number') {
-    pending = ledgers;
-    ledgers = 0;
-  }
-
-  ledgers = ledgers || 0;
-  pending = pending instanceof Transaction
-  ? [pending]
-  : this.getPending().getQueue();
+  var ledgers = ledgers || 0;
+  var pending = pending ? [ pending ] : this._pending;
 
   function resubmitTransaction(transaction, next) {
     if (!transaction || transaction.finalized) {
@@ -470,7 +449,7 @@ TransactionManager.prototype._resubmit = function(ledgers, pending) {
     }
 
     while (self._pending.hasSequence(transaction.tx_json.Sequence)) {
-      // Sequence number has been consumed by another transaction
+      //Sequence number has been consumed by another transaction
       transaction.tx_json.Sequence += 1;
 
       if (self._remote.trace) {
@@ -488,7 +467,7 @@ TransactionManager.prototype._resubmit = function(ledgers, pending) {
     });
 
     self._request(transaction);
-  }
+  };
 
   this._waitLedgers(ledgers, function() {
     async.eachSeries(pending, resubmitTransaction);
@@ -544,13 +523,13 @@ TransactionManager.prototype._request = function(tx) {
   }
 
   if (tx.attempts > this._maxAttempts) {
-    tx.emit('error', new RippleError('tejAttemptsExceeded'));
+    tx.emit('error', new RadrError('tejAttemptsExceeded'));
     return;
   }
 
   if (tx.attempts > 0 && !remote.local_signing) {
-    var errMessage = 'Automatic resubmission requires local signing';
-    tx.emit('error', new RippleError('tejLocalSigningRequired', errMessage));
+    var message = 'Automatic resubmission requires local signing';
+    tx.emit('error', new RadrError('tejLocalSigningRequired', message));
     return;
   }
 
@@ -563,22 +542,22 @@ TransactionManager.prototype._request = function(tx) {
       // Transaction may succeed after Sequence is updated
       self._resubmit(1, tx);
     }
-  }
+  };
 
-  function transactionRetry() {
+  function transactionRetry(message) {
     // XXX This may no longer be necessary. Instead, update sequence numbers
     // after a transaction fails definitively
     self._fillSequence(tx, function() {
       self._resubmit(1, tx);
     });
-  }
+  };
 
   function transactionFailedLocal(message) {
     if (message.engine_result === 'telINSUF_FEE_P') {
       // Transaction may succeed after Fee is updated
       self._resubmit(1, tx);
     }
-  }
+  };
 
   function submissionError(error) {
     // Either a tem-class error or generic server error such as tooBusy. This
@@ -589,7 +568,7 @@ TransactionManager.prototype._request = function(tx) {
       self._nextSequence--;
       tx.emit('error', error);
     }
-  }
+  };
 
   function submitted(message) {
     if (tx.finalized) {
@@ -632,7 +611,7 @@ TransactionManager.prototype._request = function(tx) {
         // tem
         submissionError(message);
     }
-  }
+  };
 
   function requestTimeout() {
     // ND: What if the response is just slow and we get a response that
@@ -651,7 +630,7 @@ TransactionManager.prototype._request = function(tx) {
       }
       self._resubmit(1, tx);
     }
-  }
+  };
 
   tx.submitIndex = this._remote._ledger_current_index;
 
@@ -682,7 +661,10 @@ TransactionManager.prototype._request = function(tx) {
 
   tx.emit('postsubmit');
 
+  //XXX
   submitRequest.timeout(self._submissionTimeout, requestTimeout);
+
+  return submitRequest;
 };
 
 /**
@@ -693,6 +675,7 @@ TransactionManager.prototype._request = function(tx) {
 
 TransactionManager.prototype.submit = function(tx) {
   var self = this;
+  var remote = this._remote;
 
   if (typeof this._nextSequence !== 'number') {
     // If sequence number is not yet known, defer until it is.

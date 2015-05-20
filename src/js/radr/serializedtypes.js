@@ -320,9 +320,14 @@ var STAmount = exports.Amount = new SerializedType({
       // so this code can make certain guarantees about the encoded value.
       valueBytes[0] &= 0x3f;
 
+      if (amount.currency().to_json() === 'VBC'){ // VBC requires 0x20 to be set on first value
+        valueBytes[0] |= 0x20;
+      }
+
       if (!amount.is_negative()) {
         valueBytes[0] |= 0x40;
       }
+
     } else {
       var hi = 0, lo = 0;
 
@@ -394,9 +399,16 @@ var STAmount = exports.Amount = new SerializedType({
       //native
       var integer_bytes = value_bytes.slice();
       integer_bytes[0] &= 0x3f;
+
+      var native_vbc = (value_bytes[0] & 0x20);
+
+      if(native_vbc){
+        integer_bytes[0] = 0; //clear VBC amount encoded, pass notion of VBC through /VBC in Amount#from_json
+      }
+
       var integer_hex = utils.arrayToHex(integer_bytes);
       var value = new BigNumber(integer_hex, 16);
-      return Amount.from_json((is_negative ? '-' : '') + value.toString());
+      return Amount.from_json((is_negative ? '-' : '') + value.toString() + (native_vbc ? '/VBC' : ''));
     }
   }
 });
@@ -541,7 +553,7 @@ var STPathSet = exports.PathSet = new SerializedType({
       if (tag_byte & this.typeCurrency) {
         //console.log('entry.currency');
         entry.currency = STCurrency.parse(so);
-        if (entry.currency.to_json() === 'XRP' && !entry.currency.is_native()) {
+        if (entry.currency.to_json() === 'VRP' && !entry.currency.is_native()) {
           entry.non_native = true;
         }
         type = type | this.typeCurrency;

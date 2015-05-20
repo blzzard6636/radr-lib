@@ -1,19 +1,13 @@
-'use strict';
-
-/*eslint no-multi-spaces:0,space-in-brackets:0,key-spacing:0,comma-spacing:0*/
-
 /**
  * Data type map.
  *
  * Mapping of type ids to data types. The type id is specified by the high
  *
- * For reference, see rippled's definition:
- * https://github.com/ripple/rippled/blob/develop/src/ripple/data/protocol
- *                                                              /SField.cpp
+ * For reference, see radrd's definition:
+ * https://github.com/radr/radrd/blob/develop/src/radr/data/protocol/SField.cpp
  */
-
-exports.types = [
-  undefined,
+var TYPES_MAP = exports.types = [
+  void(0),
 
   // Common
   'Int16',    // 1
@@ -26,11 +20,11 @@ exports.types = [
   'Account',  // 8
 
   // 9-13 reserved
-  undefined,    // 9
-  undefined,    // 10
-  undefined,    // 11
-  undefined,    // 12
-  undefined,    // 13
+  void(0),    // 9
+  void(0),    // 10
+  void(0),    // 11
+  void(0),    // 12
+  void(0),    // 13
 
   'Object',   // 14
   'Array',    // 15
@@ -87,7 +81,9 @@ var FIELDS_MAP = exports.fields = {
     31: 'ReserveBase',
     32: 'ReserveIncrement',
     33: 'SetFlag',
-    34: 'ClearFlag'
+    34: 'ClearFlag',
+    181: 'DividendLedger',
+    182: 'ReferenceHeight'
   },
   3: { // Int64
     1: 'IndexNext',
@@ -97,7 +93,14 @@ var FIELDS_MAP = exports.fields = {
     5: 'BaseFee',
     6: 'ExchangeRate',
     7: 'LowNode',
-    8: 'HighNode'
+    8: 'HighNode',
+    181: 'DividendCoinsVBC',
+    182: 'DividendCoinsVBCRank',
+    183: 'DividendCoinsVBCSpread',
+    184: 'DividendVRank',
+    185: 'DividendVSprd',
+    186: 'DividendCoins',
+    187: 'DividendTSprd'
   },
   4: { // Hash128
     1: 'EmailHash'
@@ -116,7 +119,8 @@ var FIELDS_MAP = exports.fields = {
     17: 'InvoiceID',
     18: 'Nickname',
     19: 'Amendment',
-    20: 'TicketID'
+    20: 'TicketID',
+    181: 'DividendResultHash'
   },
   6: { // Amount
     1: 'Amount',
@@ -130,7 +134,8 @@ var FIELDS_MAP = exports.fields = {
     9: 'SendMax',
     16: 'MinimumOffer',
     17: 'RippleEscrow',
-    18: 'DeliveredAmount'
+    18: 'DeliveredAmount',
+    181: 'BalanceVBC'
   },
   7: { // VL
     1: 'PublicKey',
@@ -154,10 +159,12 @@ var FIELDS_MAP = exports.fields = {
     3: 'Destination',
     4: 'Issuer',
     7: 'Target',
-    8: 'RegularKey'
+    8: 'RegularKey',
+    181: 'Referee',
+    182: 'Reference'
   },
   14: { // Object
-    1: undefined,  // end of Object
+    1: void(0),  //end of Object
     2: 'TransactionMetaData',
     3: 'CreatedNode',
     4: 'DeletedNode',
@@ -166,10 +173,11 @@ var FIELDS_MAP = exports.fields = {
     7: 'FinalFields',
     8: 'NewFields',
     9: 'TemplateEntry',
-    10: 'Memo'
+    10: 'Memo',
+    181: 'ReferenceHolder'
   },
   15: { // Array
-    1: undefined,  // end of Array
+    1: void(0),  //end of Array
     2: 'SigningAccounts',
     3: 'TxnSignatures',
     4: 'Signatures',
@@ -177,14 +185,17 @@ var FIELDS_MAP = exports.fields = {
     6: 'Necessary',
     7: 'Sufficient',
     8: 'AffectedNodes',
-    9: 'Memos'
+    9: 'Memos',
+    181: 'References'
   },
 
   // Uncommon types
   16: { // Int8
     1: 'CloseResolution',
     2: 'TemplateEntryType',
-    3: 'TransactionResult'
+    3: 'TransactionResult',
+    181: 'DividendState',
+    182: 'DividendType'
   },
   17: { // Hash160
     1: 'TakerPaysCurrency',
@@ -210,6 +221,7 @@ Object.keys(FIELDS_MAP).forEach(function(k1) {
   });
 });
 
+
 var REQUIRED = exports.REQUIRED = 0,
     OPTIONAL = exports.OPTIONAL = 1,
     DEFAULT  = exports.DEFAULT  = 2;
@@ -234,9 +246,7 @@ exports.tx = {
     [ 'WalletSize'         , OPTIONAL ],
     [ 'MessageKey'         , OPTIONAL ],
     [ 'Domain'             , OPTIONAL ],
-    [ 'TransferRate'       , OPTIONAL ],
-    [ 'SetFlag'            , OPTIONAL ],
-    [ 'ClearFlag'          , OPTIONAL ]
+    [ 'TransferRate'       , OPTIONAL ]
   ]),
   TrustSet: [20].concat(base, [
     [ 'LimitAmount'        , OPTIONAL ],
@@ -246,14 +256,13 @@ exports.tx = {
   OfferCreate: [7].concat(base, [
     [ 'TakerPays'          , REQUIRED ],
     [ 'TakerGets'          , REQUIRED ],
-    [ 'Expiration'         , OPTIONAL ],
-    [ 'OfferSequence'      , OPTIONAL ]
+    [ 'Expiration'         , OPTIONAL ]
   ]),
   OfferCancel: [8].concat(base, [
     [ 'OfferSequence'      , REQUIRED ]
   ]),
   SetRegularKey: [5].concat(base, [
-    [ 'RegularKey'         , OPTIONAL ]
+    [ 'RegularKey'         , REQUIRED ]
   ]),
   Payment: [0].concat(base, [
     [ 'Destination'        , REQUIRED ],
@@ -262,6 +271,28 @@ exports.tx = {
     [ 'Paths'              , DEFAULT  ],
     [ 'InvoiceID'          , OPTIONAL ],
     [ 'DestinationTag'     , OPTIONAL ]
+  ]),
+  Dividend: [181].concat(base, [
+    [ 'DividendType'       , REQUIRED ],
+    [ 'DividendLedger'     , REQUIRED ],
+    [ 'Destination'        , OPTIONAL ],
+    [ 'DividendCoins'      , REQUIRED ],
+    [ 'DividendCoinsVBC'   , REQUIRED ],
+    [ 'DividendCoinsVBCRank', OPTIONAL ],
+    [ 'DividendCoinsVBCSprd', OPTIONAL ],
+    [ 'DividendVRank'      , OPTIONAL ],
+    [ 'DividendVSprd'      , OPTIONAL ],
+    [ 'DividendTSprd'      , OPTIONAL ],
+    [ 'DividendResultHash' , OPTIONAL ]
+  ]),
+  AddReferee: [182].concat(base, [
+    [ 'Destination'        , REQUIRED ],
+    [ 'Amount'             , OPTIONAL ]
+  ]),
+  ActiveAccount: [183].concat(base, [
+    [ 'Referee'            , REQUIRED ],
+    [ 'Reference'          , REQUIRED ],
+    [ 'Amount'             , OPTIONAL ],
   ]),
   Contract: [9].concat(base, [
     [ 'Expiration'         , REQUIRED ],
@@ -279,21 +310,12 @@ exports.tx = {
   EnableFeature: [100].concat(base, [
     [ 'Feature'            , REQUIRED ]
   ]),
-  EnableAmendment: [100].concat(base, [
-    [ 'Amendment'          , REQUIRED ]
-  ]),
   SetFee: [101].concat(base, [
+    [ 'Features'           , REQUIRED ],
     [ 'BaseFee'            , REQUIRED ],
     [ 'ReferenceFeeUnits'  , REQUIRED ],
     [ 'ReserveBase'        , REQUIRED ],
     [ 'ReserveIncrement'   , REQUIRED ]
-  ]),
-  TicketCreate: [10].concat(base, [
-    [ 'Target'             , OPTIONAL ],
-    [ 'Expiration'         , OPTIONAL ]
-  ]),
-  TicketCancel: [11].concat(base, [
-    [ 'TicketID'           , REQUIRED ]
   ])
 };
 
@@ -315,10 +337,14 @@ exports.ledger = {
     ['AccountTxnID',       OPTIONAL],
     ['WalletLocator',      OPTIONAL],
     ['Balance',            REQUIRED],
+    ['BalanceVBC',         REQUIRED],
     ['MessageKey',         OPTIONAL],
     ['Domain',             OPTIONAL],
     ['Account',            REQUIRED],
-    ['RegularKey',         OPTIONAL]]),
+    ['RegularKey',         OPTIONAL],
+    ['Referee',            OPTIONAL],
+    ['Refrences',          OPTIONAL],
+    ['ReferenceHeight',    OPTIONAL]]),
   Contract: [99].concat(sleBase,[
     ['PreviousTxnLgrSeq',  REQUIRED],
     ['Expiration',         REQUIRED],
@@ -343,6 +369,14 @@ exports.ledger = {
     ['TakerGetsCurrency',  OPTIONAL],
     ['TakerGetsIssuer',    OPTIONAL],
     ['Indexes',            REQUIRED]]),
+  Dividend: [68].concat(sleBase,[
+    ['DividendState',     REQUIRED],
+    ['DividendLedger',    REQUIRED],
+    ['DividendCoins',     REQUIRED],
+    ['DividendCoinsVBC',  REQUIRED],
+    ['DividendVRank',     OPTIONAL],
+    ['DividendVSprd',     OPTIONAL],
+    ['DividendResultHash',OPTIONAL]]),
   EnabledFeatures: [102].concat(sleBase,[
     ['Features',           REQUIRED]]),
   FeeSettings: [115].concat(sleBase,[
@@ -380,6 +414,9 @@ exports.ledger = {
     ['TakerPays',           REQUIRED],
     ['TakerGets',           REQUIRED],
     ['Account',             REQUIRED]]),
+  Refer: [82].concat(sleBase,[
+    ['Reference',           REQUIRED],
+    ['Referee',             REQUIRED]]),
   RippleState: [114].concat(sleBase,[
     ['LedgerEntryType',     REQUIRED],
     ['Flags',               REQUIRED],
@@ -431,8 +468,5 @@ exports.ter = {
   tecNO_TARGET             : 138,
   tecNO_PERMISSION         : 139,
   tecNO_ENTRY              : 140,
-  tecINSUFFICIENT_RESERVE  : 141,
-  tecNEED_MASTER_KEY       : 142,
-  tecDST_TAG_NEEDED        : 143,
-  tecINTERNAL              : 144
+  tecINSUFFICIENT_RESERVE  : 141
 };

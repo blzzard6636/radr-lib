@@ -1,4 +1,4 @@
-// Represent Ripple amounts and currencies.
+// Represent Radr amounts and currencies.
 // - Numbers in hex are big-endian.
 
 var assert    = require('assert');
@@ -25,13 +25,14 @@ function Amount() {
   //  { 'value' : ..., 'currency' : ..., 'issuer' : ...}
 
   this._value       = new BigNumber(NaN);
-  this._is_native   = true; // Default to XRP. Only valid if value is not NaN.
+  this._is_native   = true; // Default to VRP/VBC. Only valid if value is not NaN.
   this._currency    = new Currency();
   this._issuer      = new UInt160();
 }
 
 var consts = {
   currency_xns:      0,
+  currency_xns_vbc:  255, // 0xFF
   currency_one:      1,
   xns_precision:     6,
 
@@ -60,7 +61,8 @@ var consts = {
   min_value:         '-1000000000000000e-96'
 };
 
-var MAX_XRP_VALUE = new BigNumber(1e11);
+// TODO: MAX_VRP_VALUE should be set to something from the SPEC and not a guess
+var MAX_VRP_VALUE = new BigNumber(1e16);
 var MAX_IOU_VALUE = new BigNumber(consts.max_value);
 var MIN_IOU_VALUE = (new BigNumber(consts.min_value)).abs();
 
@@ -181,7 +183,7 @@ Amount.prototype.divide = function(divisor) {
  * @param {Amount} denominator The denominator (bottom half) of the fraction.
  * @param opts Options for the calculation.
  * @param opts.reference_date {Date|Number} Date based on which demurrage/interest
- *   should be applied. Can be given as JavaScript Date or int for Ripple epoch.
+ *   should be applied. Can be given as JavaScript Date or int for Radr epoch.
  * @return {Amount} The resulting ratio. Unit will be the same as numerator.
  */
 
@@ -243,7 +245,7 @@ Amount.prototype.ratio_human = function(denominator, opts) {
  * @param {Amount} factor The second factor of the product.
  * @param opts Options for the calculation.
  * @param opts.reference_date {Date|Number} Date based on which demurrage/interest
- *   should be applied. Can be given as JavaScript Date or int for Ripple epoch.
+ *   should be applied. Can be given as JavaScript Date or int for Radr epoch.
  * @return {Amount} The product. Unit will be the same as the first factor.
  */
 Amount.prototype.product_human = function(factor, opts) {
@@ -300,8 +302,8 @@ Amount.prototype.invert = function() {
 /**
  * Canonicalize amount value
  *
- * Mirrors rippled's internal Amount representation
- * From https://github.com/ripple/rippled/blob/develop/src/ripple/data/protocol/STAmount.h#L31-L40
+ * Mirrors radrd's internal Amount representation
+ * From https://github.com/radr/radrd/blob/develop/src/radr/data/protocol/STAmount.h#L31-L40
  *
  * Internal form:
  * 1: If amount is zero, then value is zero and offset is -100
@@ -343,8 +345,8 @@ Amount.prototype._check_limits = function() {
   }
   var absval = this._value.absoluteValue();
   if (this._is_native) {
-    if (absval.greaterThan(MAX_XRP_VALUE)) {
-      throw new Error('Exceeding max value of ' + MAX_XRP_VALUE.toString());
+    if (absval.greaterThan(MAX_VRP_VALUE)) {
+      throw new Error('Exceeding max value of ' + MAX_VRP_VALUE.toString());
     }
   } else {
     if (absval.lessThan(MIN_IOU_VALUE)) {
@@ -476,7 +478,7 @@ Amount.prototype.parse_human = function(j, opts) {
   if (words.length === 1) {
     if (isNumber(words[0])) {
       value = words[0];
-      currency = 'XRP';
+      currency = 'VRP';
     } else {
       value = words[0].slice(0, -3);
       currency = words[0].slice(-3);
@@ -503,7 +505,7 @@ Amount.prototype.parse_human = function(j, opts) {
 
   currency = currency.toUpperCase();
   this.set_currency(currency);
-  this._is_native = (currency === 'XRP');
+  this._is_native = (currency === 'VRP' || currency === 'VBC');
   this._set_value(new BigNumber(value));
 
   // Apply interest/demurrage
@@ -546,7 +548,7 @@ Amount.prototype.parse_issuer = function(issuer) {
  *   demurrage has to be applied when the quality is decoded, otherwise the
  *   price will be false.
  * @param opts.reference_date {Date|Number} Date based on which demurrage/interest
- *   should be applied. Can be given as JavaScript Date or int for Ripple epoch.
+ *   should be applied. Can be given as JavaScript Date or int for Radr epoch.
  * @param opts.xrp_as_drops {Boolean} Whether XRP amount should be treated as
  *   drops. When the base currency is XRP, the quality is calculated in drops.
  *   For human use however, we want to think of 1000000 drops as 1 XRP and
@@ -569,8 +571,8 @@ Amount.prototype.parse_quality = function(quality, counterCurrency, counterIssue
   this._issuer      = UInt160.from_json(counterIssuer);
   this._is_native   = this._currency.is_native();
 
-  if (this._is_native && baseCurrency.is_native()) {
-    throw new Error('XRP/XRP quality is not allowed');
+  if ((this._is_native && baseCurrency.is_native()) && (this._currency.get_iso() && baseCurrency.get_iso())) {
+    throw new Error('VRP/VRP or VBC/VBC quality is not allowed');
   }
 
   /*
@@ -635,10 +637,14 @@ Amount.prototype.parse_json = function(j) {
         this._currency  = Currency.from_json(m[2]);
         if (m[3]) {
           this._issuer  = UInt160.from_json(m[3]);
+        } else if(m[2] === 'VBC') { // native VBC
+          this.parse_native(m[1]);
+          this._currency = Currency.from_json(UInt160.HEX_TWOFIFTYFIVE);
+          this._issuer = UInt160.from_json(UInt160.HEX_TWOFIFTYFIVE);
         } else {
           this._issuer  = UInt160.from_json('1');
+          this.parse_value(m[1]);
         }
-        this.parse_value(m[1]);
       } else {
         this.parse_native(j);
         this._currency  = Currency.from_json('0');
@@ -659,13 +665,18 @@ Amount.prototype.parse_json = function(j) {
         j.copyTo(this);
       } else if (j.hasOwnProperty('value')) {
         // Parse the passed value to sanitize and copy it.
-        this._currency.parse_json(j.currency, true); // Never XRP.
+        this._currency.parse_json(j.currency);
 
         if (typeof j.issuer === 'string') {
           this._issuer.parse_json(j.issuer);
         }
 
-        this.parse_value(j.value);
+        if(this._currency.is_native()){
+          this.parse_native(j.value)
+        }
+        else {
+          this.parse_value(j.value);
+        }
       }
       break;
 
@@ -764,7 +775,7 @@ Amount.prototype.to_text = function() {
  * intended by display functions such as toHuman().
  *
  * @param referenceDate {Date|Number} Date based on which demurrage/interest
- *   should be applied. Can be given as JavaScript Date or int for Ripple epoch.
+ *   should be applied. Can be given as JavaScript Date or int for Radr epoch.
  * @return {Amount} The amount with interest applied.
  */
 Amount.prototype.applyInterest = function(referenceDate) {
@@ -795,7 +806,7 @@ Amount.prototype.applyInterest = function(referenceDate) {
  * @param opts.signed {Boolean|String} Whether negative numbers will have a
  *   prefix. If String, that string will be used as the prefix. Default: '-'
  * @param opts.reference_date {Date|Number} Date based on which demurrage/interest
- *   should be applied. Can be given as JavaScript Date or int for Ripple epoch.
+ *   should be applied. Can be given as JavaScript Date or int for Radr epoch.
  */
 Amount.prototype.to_human = function(opts) {
   opts = opts || {};
@@ -902,19 +913,16 @@ Amount.prototype.to_human_full = function(opts) {
 };
 
 Amount.prototype.to_json = function() {
-  if (this._is_native) {
-    return this.to_text();
-  } else {
-    var amount_json = {
-      value : this.to_text(),
-      currency : this._currency.has_interest() ?
-        this._currency.to_hex() : this._currency.to_json()
-    };
-    if (this._issuer.is_valid()) {
-      amount_json.issuer = this._issuer.to_json();
-    }
-    return amount_json;
+  var amount_json = {
+    value: this.to_text(),
+    currency: this._currency.has_interest() ?
+      this._currency.to_hex() : this._currency.to_json(),
+    issuer: ''
+  };
+  if (this._issuer.is_valid()) {
+    amount_json.issuer = this._issuer.to_json();
   }
+  return amount_json;
 };
 
 Amount.prototype.to_text_full = function(opts) {
@@ -922,7 +930,7 @@ Amount.prototype.to_text_full = function(opts) {
     return 'NaN';
   }
   return this._is_native
-      ? this.to_human() + '/XRP'
+      ? this.to_text() + '/' + this._currency.to_json()
       : this.to_text() + '/' + this._currency.to_json()
         + '/' + this._issuer.to_json(opts);
 };
@@ -942,7 +950,7 @@ Amount.prototype.not_equals_why = function(d, ignore_issuer) {
     return 'Native mismatch.';
   }
 
-  var type = this._is_native ? 'XRP' : 'Non-XRP';
+  var type = this._is_native ? 'VRP/VBC' : 'Non-VRP/VBC';
   if (!this._value.isZero() && this._value.negated().equals(d._value)) {
     return type + ' sign differs.';
   }
@@ -951,10 +959,10 @@ Amount.prototype.not_equals_why = function(d, ignore_issuer) {
   }
   if (!this._is_native) {
     if (!this._currency.equals(d._currency)) {
-      return 'Non-XRP currency differs.';
+      return 'Non-VRP/VBC currency differs.';
     }
     if (!ignore_issuer && !this._issuer.equals(d._issuer)) {
-      return 'Non-XRP issuer differs: ' + d._issuer.to_json() + '/' + this._issuer.to_json();
+      return 'Non-VRP/VBC issuer differs: ' + d._issuer.to_json() + '/' + this._issuer.to_json();
     }
   }
 };
