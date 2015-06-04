@@ -7,13 +7,16 @@ var utils     = require('./utils');
 var UInt160   = require('./uint160').UInt160;
 var Seed      = require('./seed').Seed;
 var Currency  = require('./currency').Currency;
-var GlobalBigNumber = require('bignumber.js');
+var BigNumber = require('./bignumber');
 
-var BigNumber = GlobalBigNumber.another({
-  ROUNDING_MODE: GlobalBigNumber.ROUND_HALF_UP,
-  DECIMAL_PLACES: 40
-});
 
+function isInteger(number) {
+  return parseInt(number) === number;
+}
+
+function ensureDecimalPoint(value) {
+  return isInteger(value) ? String(value) + '.0' : value;
+}
 
 function inverse(number) {
   return (new BigNumber(number)).toPower(-1);
@@ -21,7 +24,7 @@ function inverse(number) {
 
 function Amount() {
   // Json format:
-  //  integer : VRP
+  //  integer : XRP
   //  { 'value' : ..., 'currency' : ..., 'issuer' : ...}
 
   this._value       = new BigNumber(NaN);
@@ -54,10 +57,10 @@ var consts = {
   cMinOffset:        -96,
   cMaxOffset:        80,
 
-  // Maximum possible amount for non-VRP currencies using the maximum mantissa
+  // Maximum possible amount for non-XRP currencies using the maximum mantissa
   // with maximum exponent. Corresponds to hex 0xEC6386F26FC0FFFF.
   max_value:         '9999999999999999e80',
-  // Minimum possible amount for non-VRP currencies.
+  // Minimum possible amount for non-XRP currencies.
   min_value:         '-1000000000000000e-96'
 };
 
@@ -173,7 +176,7 @@ Amount.prototype.divide = function(divisor) {
  * objects.
  *
  * The return value will have the same type (currency) as the numerator. This is
- * a simplification, which should be sane in most cases. For example, a USD/VRP
+ * a simplification, which should be sane in most cases. For example, a USD/XRP
  * price would be rendered as USD.
  *
  * @example
@@ -191,7 +194,7 @@ Amount.prototype.ratio_human = function(denominator, opts) {
   opts = extend({ }, opts);
 
   var numerator = this;
-  denominator = Amount.from_json(denominator);
+  denominator = Amount.from_json(ensureDecimalPoint(denominator));
 
   // If either operand is NaN, the result is NaN.
   if (!numerator.is_valid() || !denominator.is_valid()) {
@@ -210,9 +213,9 @@ Amount.prototype.ratio_human = function(denominator, opts) {
     denominator = denominator.applyInterest(opts.reference_date);
   }
 
-  // Special case: The denominator is a native (VRP) amount.
+  // Special case: The denominator is a native (XRP) amount.
   //
-  // In that case, it's going to be expressed as base units (1 VRP =
+  // In that case, it's going to be expressed as base units (1 XRP =
   // 10^xns_precision base units).
   //
   // However, the unit of the denominator is lost, so when the resulting ratio
@@ -231,10 +234,10 @@ Amount.prototype.ratio_human = function(denominator, opts) {
  * Calculate a product of two amounts.
  *
  * This function allows you to calculate a product between two amounts which
- * retains VRPs human/external interpretation (i.e. 1 VRP = 1,000,000 base
+ * retains XRPs human/external interpretation (i.e. 1 XRP = 1,000,000 base
  * units).
  *
- * Intended use is to calculate something like: 10 USD * 10 VRP/USD = 100 VRP
+ * Intended use is to calculate something like: 10 USD * 10 XRP/USD = 100 XRP
  *
  * @example
  *   var sell_amount = buy_amount.product_human(price);
@@ -251,7 +254,7 @@ Amount.prototype.ratio_human = function(denominator, opts) {
 Amount.prototype.product_human = function(factor, opts) {
   opts = opts || {};
 
-  factor = Amount.from_json(factor);
+  factor = Amount.from_json(ensureDecimalPoint(factor));
 
   // If either operand is NaN, the result is NaN.
   if (!this.is_valid() || !factor.is_valid()) {
@@ -268,8 +271,8 @@ Amount.prototype.product_human = function(factor, opts) {
 
   var product = this.multiply(factor);
 
-  // Special case: The second factor is a native (VRP) amount expressed as base
-  // units (1 VRP = 10^xns_precision base units).
+  // Special case: The second factor is a native (XRP) amount expressed as base
+  // units (1 XRP = 10^xns_precision base units).
   //
   // See also Amount#ratio_human.
   if (factor._is_native) {
@@ -302,8 +305,8 @@ Amount.prototype.invert = function() {
 /**
  * Canonicalize amount value
  *
- * Mirrors rippled's internal Amount representation
- * From https://github.com/ripple/rippled/blob/develop/src/ripple/data/protocol/STAmount.h#L31-L40
+ * Mirrors radrd's internal Amount representation
+ * From https://github.com/radr/radrd/blob/develop/src/radr/data/protocol/STAmount.h#L31-L40
  *
  * Internal form:
  * 1: If amount is zero, then value is zero and offset is -100
@@ -332,7 +335,10 @@ Amount.prototype.canonicalize = function(roundingMode) {
     this._value = this._value.round(6, BigNumber.ROUND_DOWN);
   } else {
     if (roundingMode) {
-      this._value = new BigNumber(this._value.toPrecision(16, roundingMode));
+      var value = this._value;
+      this._value = BigNumber.withRoundingMode(roundingMode, function() {
+        return new BigNumber(value.toPrecision(16));
+      });
     } else {
       this._value = new BigNumber(this._value.toPrecision(16));
     }
@@ -447,10 +453,10 @@ Amount.prototype.negate = function() {
  *
  * Examples:
  *
- *   VRP 250     => 250000000/VRP
- *   25.2 VRP    => 25200000/VRP
+ *   XRP 250     => 250000000/XRP
+ *   25.2 XRP    => 25200000/XRP
  *   USD 100.40  => 100.4/USD/?
- *   100         => 100000000/VRP
+ *   100         => 100000000/XRP
  *
  *
  * The regular expression below matches above cases, broken down for better understanding:
@@ -548,12 +554,11 @@ Amount.prototype.parse_issuer = function(issuer) {
  *   demurrage has to be applied when the quality is decoded, otherwise the
  *   price will be false.
  * @param opts.reference_date {Date|Number} Date based on which demurrage/interest
- *   should be applied. Can be given as JavaScript Date or int for Ripple epoch.
- * @param opts.VRP_as_drops {Boolean} Whether VRP amount should be treated as
- *   drops. When the base currency is VRP, the quality is calculated in drops.
- *   For human use however, we want to think of 1000000 drops as 1 VRP and
- *   prices as per-VRP instead of per-drop.
  *   should be applied. Can be given as JavaScript Date or int for Radr epoch.
+ * @param opts.xrp_as_drops {Boolean} Whether XRP amount should be treated as
+ *   drops. When the base currency is XRP, the quality is calculated in drops.
+ *   For human use however, we want to think of 1000000 drops as 1 XRP and
+ *   prices as per-XRP instead of per-drop.
  */
 Amount.prototype.parse_quality = function(quality, counterCurrency, counterIssuer, opts)
 {
@@ -592,7 +597,7 @@ Amount.prototype.parse_quality = function(quality, counterCurrency, counterIssue
   var adjusted = opts.inverse ? inverse(value) : value;
   var nativeAdjusted = adjusted;
 
-  if (!opts.VRP_as_drops) {
+  if (!opts.xrp_as_drops) {
     // `In a currency exchange, the exchange rate is quoted as the units of the
     //  counter currency in terms of a single unit of a base currency`. A
     //  quality is how much taker must `pay` to get ONE `gets` unit thus:
@@ -600,11 +605,11 @@ Amount.prototype.parse_quality = function(quality, counterCurrency, counterIssue
     //    gets ~= baseCurrency.
     if (this._is_native) {
       // pay:$price              drops  get:1 X
-      // pay:($price / 1,000,000)  VRP  get:1 X
+      // pay:($price / 1,000,000)  XRP  get:1 X
       nativeAdjusted = adjusted.div(Amount.bi_xns_unit);
     } else if (baseCurrency.is_valid() && baseCurrency.is_native()) {
       // pay:$price X                   get:1 drop
-      // pay:($price * 1,000,000) X     get:1 VRP
+      // pay:($price * 1,000,000) X     get:1 XRP
       nativeAdjusted = adjusted.times(Amount.bi_xns_unit);
     }
   }
@@ -688,18 +693,19 @@ Amount.prototype.parse_json = function(j) {
   return this;
 };
 
-// Parse a VRP value from untrusted input.
+// Parse a XRP value from untrusted input.
 // - integer = raw units
 // - float = with precision 6
 // XXX Improvements: disallow leading zeros.
 Amount.prototype.parse_native = function(j) {
-  if (typeof j === 'string' && !isNaN(parseInt(j))) {
-    if (j.indexOf('.') >= 0) {
-      throw new Error('Native amounts must be specified in integer drops')
-    }
+  if (typeof j === 'string' && j.match(/^-?\d*(\.\d{0,6})?$/)) {
     var value = new BigNumber(j);
     this._is_native = true;
-    this._set_value(value.dividedBy(Amount.bi_xns_unit));
+    if (j.indexOf('.') >= 0) {
+      this._set_value(value);
+    } else {
+      this._set_value(value.dividedBy(Amount.bi_xns_unit));
+    }
   } else {
     this._set_value(new BigNumber(NaN));
   }

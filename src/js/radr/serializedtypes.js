@@ -11,7 +11,7 @@ var extend    = require('extend');
 var binformat = require('./binformat');
 var utils     = require('./utils');
 var sjcl      = utils.sjcl;
-var GlobalBigNumber = require('bignumber.js');
+var BigNumber = require('./bignumber');
 
 var UInt128   = require('./uint128').UInt128;
 var UInt160   = require('./uint160').UInt160;
@@ -21,11 +21,6 @@ var Base      = require('./base').Base;
 var amount    = require('./amount');
 var Amount    = amount.Amount;
 var Currency  = amount.Currency;
-
-var BigNumber = GlobalBigNumber.another({
-  ROUNDING_MODE: GlobalBigNumber.ROUND_HALF_UP,
-  DECIMAL_PLACES: 40
-});
 
 var SerializedType = function (methods) {
   extend(this, methods);
@@ -318,12 +313,7 @@ var STAmount = exports.Amount = new SerializedType({
       // Clear most significant two bits - these bits should already be 0 if
       // Amount enforces the range correctly, but we'll clear them anyway just
       // so this code can make certain guarantees about the encoded value.
-
-      valueBytes[0] &= 0x1f;
-
-      if(amount.currency().to_json() === 'VBC'){
-        valueBytes[0] |= 0x20;
-      }
+      valueBytes[0] &= 0x3f;
 
       if (amount.currency().to_json() === 'VBC'){ // VBC requires 0x20 to be set on first value
         valueBytes[0] |= 0x20;

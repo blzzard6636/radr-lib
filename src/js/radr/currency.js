@@ -12,7 +12,7 @@ var Currency = extend(function() {
   // XXX Internal should be 0 or hex with three letter annotation when valid.
 
   // Json form:
-  //  '', 'VRP', '0': 0
+  //  '', 'XRP', '0': 0
   //  3-letter code: ...
   // XXX Should support hex, C++ doesn't currently allow it.
 
@@ -25,7 +25,6 @@ Currency.prototype = extend({}, UInt160.prototype);
 Currency.prototype.constructor = Currency;
 
 Currency.HEX_CURRENCY_BAD = '0000000000000000000000005852500000000000';
-Currency.HEX_CURRENCY_VBC = '00000000000000000000000000000000000000FF';
 
 /**
  * Tries to correctly interpret a Currency as entered by a user.
@@ -53,8 +52,8 @@ Currency.HEX_CURRENCY_VBC = '00000000000000000000000000000000000000FF';
  */
 Currency.prototype.human_RE = /^\s*([a-zA-Z0-9]{3})(\s*-\s*[- \w]+)?(\s*\(-?\d+\.?\d*%pa\))?\s*$/;
 
-Currency.from_json = function(j, shouldInterpretVRPAsIou) {
-    return (new Currency()).parse_json(j, shouldInterpretVRPAsIou);
+Currency.from_json = function(j, shouldInterpretXrpAsIou) {
+    return (new Currency()).parse_json(j, shouldInterpretXrpAsIou);
 };
 
 Currency.from_human = function(j, opts) {
@@ -62,15 +61,15 @@ Currency.from_human = function(j, opts) {
 }
 
 // this._value = NaN on error.
-Currency.prototype.parse_json = function(j, shouldInterpretVRPAsIou) {
+Currency.prototype.parse_json = function(j, shouldInterpretXrpAsIou) {
   this._value = NaN;
 
   switch (typeof j) {
     case 'string':
 
-      // if an empty string is given, fall back to VRP
+      // if an empty string is given, fall back to XRP
       if (!j || j === '0') {
-        this.parse_hex(shouldInterpretVRPAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
+        this.parse_hex(shouldInterpretXrpAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
         break;
       }
 
@@ -84,23 +83,18 @@ Currency.prototype.parse_json = function(j, shouldInterpretVRPAsIou) {
         // TODO: This must be updated to reflect VBC/VRP changes
         // for the currency 'VRP' case
         // we drop everything else that could have been provided
-        // e.g. 'VRP - Ripple'
+        // e.g. 'VRP - Radr'
         if (!currencyCode || /^(0|VRP)$/.test(currencyCode)) {
-          this.parse_hex(shouldInterpretVRPAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
+          this.parse_hex(shouldInterpretXrpAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_ZERO);
 
           // early break, we can't have interest on VRP/VBC
           break;
         }
 
-        //if (/^(VBC)$/.test(currencyCode)) {
-        //  this.parse_hex(shouldInterpretXrpAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_TWOFIFTYFIVE);
-        //
-        //  // early break, we can't have interest on VRP/VBC
-        //  break;
-        //}
-
         if (/^(VBC)$/.test(currencyCode)) {
-          this.parse_hex(Currency.HEX_CURRENCY_VBC);
+          this.parse_hex(shouldInterpretXrpAsIou ? Currency.HEX_CURRENCY_BAD : Currency.HEX_TWOFIFTYFIVE);
+
+          // early break, we can't have interest on VRP/VBC
           break;
         }
 
@@ -207,23 +201,27 @@ Currency.prototype._update = function() {
   this._iso_code = '';
 
   for (var i=0; i<20; i++) {
-    isZeroExceptInStandardPositions = isZeroExceptInStandardPositions && (i===12 || i===13 || i===14 || i===19 || bytes[i]===0);
+    isZeroExceptInStandardPositions = isZeroExceptInStandardPositions && (i===12 || i===13 || i===14 || bytes[i]===0);
   }
 
   if (isZeroExceptInStandardPositions) {
     this._iso_code = String.fromCharCode(bytes[12])
                    + String.fromCharCode(bytes[13])
                    + String.fromCharCode(bytes[14]);
-    if(bytes[19] === 255){
-      this._native = true;
-      this._iso_code = 'VBC';
-      this._type = 255;
-    }
+
     if (this._iso_code === '\0\0\0') {
       this._native = true;
       this._iso_code = 'VRP';
-      this._type = 0;
     }
+
+    this._type = 0;
+  } else if (bytes.slice(-1) == 0xFF) { // VBC currency
+
+    this._native = true;
+    this._iso_code = 'VBC';
+
+    this._type = 255;
+
   } else if (bytes[0] === 0x01) { // Demurrage currency
     this._iso_code = String.fromCharCode(bytes[1])
                    + String.fromCharCode(bytes[2])
@@ -254,7 +252,7 @@ Currency.prototype.parse_bytes = function(byte_array) {
       var currencyCode = String.fromCharCode(byte_array[12])
       + String.fromCharCode(byte_array[13])
       + String.fromCharCode(byte_array[14]);
-      if (/^[A-Z0-9]{3}$/.test(currencyCode) && currencyCode !== 'VRP' ) {
+      if (/^[A-Z0-9]{3}$/.test(currencyCode) && currencyCode !== 'XRP' ) {
         this._value = currencyCode;
       } else if (currencyCode === '\0\0\0') {
         this._value = 0;

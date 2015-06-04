@@ -1,6 +1,3 @@
-'use strict';
-
-var lodash = require('lodash');
 var LRU = require('lru-cache');
 var Transaction = require('./transaction').Transaction;
 
@@ -10,9 +7,9 @@ var Transaction = require('./transaction').Transaction;
 
 function TransactionQueue() {
   this._queue = [ ];
-  this._idCache = new LRU({max: 200});
-  this._sequenceCache = new LRU({max: 200});
-}
+  this._idCache = LRU({ max: 200 });
+  this._sequenceCache = LRU({ max: 200 });
+};
 
 /**
  * Store received (validated) sequence
@@ -67,9 +64,16 @@ TransactionQueue.prototype.getReceived = function(id) {
  */
 
 TransactionQueue.prototype.getSubmission = function(id) {
-  return lodash.find(this._queue, function(tx) {
-    return lodash.contains(tx.submittedIDs, id);
-  });
+  var result = void(0);
+
+  for (var i=0, tx; (tx=this._queue[i]); i++) {
+    if (~tx.submittedIDs.indexOf(id)) {
+      result = tx;
+      break;
+    }
+  }
+
+  return result;
 };
 
 /**
@@ -79,15 +83,11 @@ TransactionQueue.prototype.getSubmission = function(id) {
  */
 
 TransactionQueue.prototype.getMinLedger = function() {
-  if (this.length() < 1) {
-    return -1;
-  }
-
   var result = Infinity;
 
-  for (var i = 0; i < this.length(); i++) {
-    if (this._queue[i].initialSubmitIndex < result) {
-      result = this._queue[i].initialSubmitIndex;
+  for (var i=0, tx; (tx=this._queue[i]); i++) {
+    if (tx.initialSubmitIndex < result) {
+      result = tx.initialSubmitIndex;
     }
   }
 
@@ -151,14 +151,6 @@ TransactionQueue.prototype.forEach = function(fn) {
 TransactionQueue.prototype.length =
 TransactionQueue.prototype.getLength = function() {
   return this._queue.length;
-};
-
-/**
- * @return {Array} pending queue
- */
-
-TransactionQueue.prototype.getQueue = function() {
-  return this._queue;
 };
 
 exports.TransactionQueue = TransactionQueue;

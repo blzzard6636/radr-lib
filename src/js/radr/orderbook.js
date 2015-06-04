@@ -440,7 +440,7 @@ OrderBook.prototype.setFundedAmount = function(offer, fundedAmount) {
   }
 
   var isOfferGetsExceeded = Amount.from_json(
-    this._currencyGets.is_native() && this._currencyGets.to_json() != 'VBC'
+    this._currencyGets.is_native()
     ? fundedAmount
     : fundedAmount + OrderBook.IOU_SUFFIX
   )
@@ -452,7 +452,7 @@ OrderBook.prototype.setFundedAmount = function(offer, fundedAmount) {
     offer.taker_gets_funded = fundedAmount;
   }
 
-  var takerPaysValue = this._currencyPays.is_native() && this._currencyPays.to_json() != 'VBC'
+  var takerPaysValue = this._currencyPays.is_native()
   ? offer.TakerPays
   : offer.TakerPays.value;
   var takerPays = Amount.from_json(takerPaysValue +  OrderBook.IOU_SUFFIX);
@@ -786,7 +786,6 @@ OrderBook.prototype.requestOffers = function(callback) {
   }
 
   function handleOffers(res) {
-    console.log("res success", res)
     if (!Array.isArray(res.offers)) {
       // XXX What now?
       return callback(new Error('Invalid response'));
@@ -804,7 +803,6 @@ OrderBook.prototype.requestOffers = function(callback) {
   };
 
   function handleError(err) {
-    console.log("res success", res)
     // XXX What now?
     if (self._remote.trace) {
       log.info('failed to request offers', self._key, err);
@@ -812,7 +810,7 @@ OrderBook.prototype.requestOffers = function(callback) {
 
     callback(err);
   };
-  console.log("request data:", this.toJSON());
+
   var request = this._remote.requestBookOffers(this.toJSON());
   request.once('success', handleOffers);
   request.once('error', handleError);
