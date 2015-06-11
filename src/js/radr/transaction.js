@@ -1077,13 +1077,14 @@ Transaction.prototype.setRegularKey = function(src, regular_key) {
  */
 
 Transaction.prototype.payment = function(src, dst, amount) {
+  /**
   if (typeof src === 'object') {
     var options = src;
     amount = options.amount;
     dst = options.destination || options.to;
     src = options.source || options.from || options.account;
   }
-
+  **/
   if (!UInt160.is_valid(src)) {
     throw new Error('Payment source address invalid');
   }
@@ -1142,6 +1143,28 @@ Transaction.prototype.rippleLineSet = function(src, limit, quality_in, quality_o
 
   return this;
 };
+
+// Add issue transaction type
+Transaction.prototype.issue = function(src, dst, sched, amount){
+  if (!UInt160.is_valid(src)) {
+    throw new Error('Source address invalid');
+  }
+  if (!UInt160.is_valid(dst)) {
+    throw new Error('Destination address invalid.');
+  }
+  if (!sched) {
+    throw new Error('Release schedule invalid');
+  }
+  if (!amount) {
+    throw new Error('Amount invalid');
+  }
+  this.tx_json.TransactionType = 'Issue';
+  this.tx_json.Account = UInt160.json_rewrite(src);
+  this.tx_json.Destination = UInt160.json_rewrite(dst);
+  this.tx_json.ReleaseSchedule = sched;
+  this.tx_json.Amount = Amount.json_rewrite(amount);
+  return this
+}
 
 /**
  * Submit transaction to the network
