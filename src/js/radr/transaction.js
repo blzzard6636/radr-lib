@@ -379,6 +379,8 @@ Transaction.prototype.complete = function() {
     return false;
   }
 
+  /*
+  // TODO
   if (typeof this.tx_json.SigningPubKey === 'undefined') {
     try {
       var seed = Seed.from_json(this._secret);
@@ -390,7 +392,7 @@ Transaction.prototype.complete = function() {
       return false;
     }
   }
-
+  */
   // If the Fee hasn't been set, one needs to be computed by
   // an assigned server
   if (this.remote && typeof this.tx_json.Fee === 'undefined') {
@@ -1161,7 +1163,7 @@ Transaction.prototype.issue = function(src, dst, sched, amount){
   this.tx_json.TransactionType = 'Issue';
   this.tx_json.Account = UInt160.json_rewrite(src);
   this.tx_json.Destination = UInt160.json_rewrite(dst);
-  this.tx_json.ReleaseSchedule = sched;
+  this.tx_json.ReleaseSchedule = Issue.json_rewrite(sched);
   this.tx_json.Amount = Amount.json_rewrite(amount);
   return this
 }
