@@ -1163,7 +1163,7 @@ Transaction.prototype.issue = function(src, dst, sched, amount){
   this.tx_json.TransactionType = 'Issue';
   this.tx_json.Account = UInt160.json_rewrite(src);
   this.tx_json.Destination = UInt160.json_rewrite(dst);
-  this.tx_json.ReleaseSchedule = Issue.json_rewrite(sched);
+  this.tx_json.ReleaseSchedule = sched;
   this.tx_json.Amount = Amount.json_rewrite(amount);
   return this
 }
